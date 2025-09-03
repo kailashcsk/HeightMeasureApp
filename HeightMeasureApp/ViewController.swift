@@ -2,24 +2,6 @@ import UIKit
 import ARKit
 import SceneKit
 
-// MARK: - Data Models
-struct MeasurementRecord {
-    let id = UUID()
-    let timestamp: Date
-    let heightCM: Float
-    let heightFeet: String
-    let imagePath: String?
-    let notes: String?
-    
-    init(heightCM: Float, heightFeet: String, imagePath: String? = nil, notes: String? = nil) {
-        self.timestamp = Date()
-        self.heightCM = heightCM
-        self.heightFeet = heightFeet
-        self.imagePath = imagePath
-        self.notes = notes
-    }
-}
-
 class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     
     @IBOutlet var sceneView: ARSCNView!
@@ -32,10 +14,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     private var isLiDARAvailable: Bool = false
     private var currentPlaneAnchors: [ARPlaneAnchor] = []
     private var crosshairNode: SCNNode!
-    
-    // MARK: - New Properties for Enhanced Features
-    private var measurementRecords: [MeasurementRecord] = []
-    private var currentMeasurementImage: UIImage?
     private var dynamicLineNode: SCNNode?
     
     // MARK: - UI Elements
@@ -44,9 +22,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     private var measurementLabel: UILabel!
     private var resetButton: UIButton!
     private var addButton: UIButton!
-    private var exportButton: UIButton!
-    private var captureButton: UIButton!
-    private var recordCountLabel: UILabel!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -192,18 +167,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         measurementLabel.isHidden = true
         view.addSubview(measurementLabel)
         
-        // Record count label
-        recordCountLabel = UILabel()
-        recordCountLabel.translatesAutoresizingMaskIntoConstraints = false
-        recordCountLabel.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.8)
-        recordCountLabel.textColor = .white
-        recordCountLabel.textAlignment = .center
-        recordCountLabel.font = UIFont.systemFont(ofSize: 14, weight: .bold)
-        recordCountLabel.layer.cornerRadius = 15
-        recordCountLabel.clipsToBounds = true
-        recordCountLabel.text = "Records: 0"
-        view.addSubview(recordCountLabel)
-        
         // Add button to add a new measurement point
         addButton = UIButton(type: .system)
         addButton.translatesAutoresizingMaskIntoConstraints = false
@@ -219,18 +182,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         addButton.layer.shadowRadius = 4
         view.addSubview(addButton)
         
-        // Capture button
-        captureButton = UIButton(type: .system)
-        captureButton.translatesAutoresizingMaskIntoConstraints = false
-        captureButton.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.9)
-        captureButton.setTitleColor(.white, for: .normal)
-        captureButton.layer.cornerRadius = 25
-        captureButton.setTitle("📷", for: .normal)
-        captureButton.titleLabel?.font = UIFont.systemFont(ofSize: 20)
-        captureButton.addTarget(self, action: #selector(captureImage), for: .touchUpInside)
-        captureButton.isHidden = true
-        view.addSubview(captureButton)
-        
         // Reset button
         resetButton = UIButton(type: .system)
         resetButton.translatesAutoresizingMaskIntoConstraints = false
@@ -241,17 +192,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         resetButton.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .bold)
         resetButton.addTarget(self, action: #selector(resetMeasurement), for: .touchUpInside)
         view.addSubview(resetButton)
-        
-        // Export button
-        exportButton = UIButton(type: .system)
-        exportButton.translatesAutoresizingMaskIntoConstraints = false
-        exportButton.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.9)
-        exportButton.setTitleColor(.white, for: .normal)
-        exportButton.layer.cornerRadius = 22
-        exportButton.setTitle("Export CSV", for: .normal)
-        exportButton.titleLabel?.font = UIFont.systemFont(ofSize: 12, weight: .bold)
-        exportButton.addTarget(self, action: #selector(exportToCSV), for: .touchUpInside)
-        view.addSubview(exportButton)
         
         setupConstraints()
     }
@@ -269,12 +209,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             instructionLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             instructionLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             
-            // Record count label
-            recordCountLabel.topAnchor.constraint(equalTo: instructionLabel.bottomAnchor, constant: 10),
-            recordCountLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            recordCountLabel.widthAnchor.constraint(equalToConstant: 100),
-            recordCountLabel.heightAnchor.constraint(equalToConstant: 30),
-            
             // Measurement label
             measurementLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             measurementLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -80),
@@ -288,23 +222,11 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             addButton.widthAnchor.constraint(equalToConstant: 70),
             addButton.heightAnchor.constraint(equalToConstant: 70),
             
-            // Capture button
-            captureButton.trailingAnchor.constraint(equalTo: addButton.leadingAnchor, constant: -20),
-            captureButton.centerYAnchor.constraint(equalTo: addButton.centerYAnchor),
-            captureButton.widthAnchor.constraint(equalToConstant: 50),
-            captureButton.heightAnchor.constraint(equalToConstant: 50),
-            
             // Reset button
             resetButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             resetButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -60),
             resetButton.widthAnchor.constraint(equalToConstant: 70),
-            resetButton.heightAnchor.constraint(equalToConstant: 44),
-            
-            // Export button
-            exportButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            exportButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -60),
-            exportButton.widthAnchor.constraint(equalToConstant: 90),
-            exportButton.heightAnchor.constraint(equalToConstant: 44)
+            resetButton.heightAnchor.constraint(equalToConstant: 44)
         ])
     }
     
@@ -355,72 +277,10 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         if measurementPoints.count == 2 {
             removeDynamicLine()
             calculateMeasurement()
-            captureButton.isHidden = false
         }
         
         let impact = UIImpactFeedbackGenerator(style: .medium)
         impact.impactOccurred()
-    }
-    
-    @objc private func captureImage() {
-        // Capture the current AR scene
-        currentMeasurementImage = sceneView.snapshot()
-        
-        // Save measurement to records
-        guard measurementPoints.count == 2 else { return }
-        
-        let distance = simd_distance(measurementPoints[0], measurementPoints[1])
-        let distanceInCm = distance * 100
-        let distanceInFeet = Double(distance) * 3.28084
-        let feet = Int(distanceInFeet)
-        let inches = (distanceInFeet - Double(feet)) * 12
-        let feetText = String(format: "%d' %.1f\"", feet, inches)
-        
-        // Save image to documents directory
-        let imagePath = saveImageToDocuments(image: currentMeasurementImage!)
-        
-        let record = MeasurementRecord(
-            heightCM: distanceInCm,
-            heightFeet: feetText,
-            imagePath: imagePath
-        )
-        
-        measurementRecords.append(record)
-        updateRecordCountLabel()
-        
-        showFeedback("Measurement saved! (\(measurementRecords.count) total)", isError: false)
-        
-        // Auto-reset for next measurement
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            self.resetMeasurement()
-        }
-        
-        let success = UINotificationFeedbackGenerator()
-        success.notificationOccurred(.success)
-    }
-    
-    @objc private func exportToCSV() {
-        guard !measurementRecords.isEmpty else {
-            showFeedback("No measurements to export", isError: true)
-            return
-        }
-        
-        let csvContent = generateCSVContent()
-        let fileName = "height_measurements_\(DateFormatter.filenameDateFormatter.string(from: Date())).csv"
-        
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-        
-        do {
-            try csvContent.write(to: tempURL, atomically: true, encoding: .utf8)
-            
-            let activityVC = UIActivityViewController(activityItems: [tempURL], applicationActivities: nil)
-            activityVC.popoverPresentationController?.sourceView = exportButton
-            present(activityVC, animated: true)
-            
-            showFeedback("CSV exported successfully", isError: false)
-        } catch {
-            showFeedback("Export failed: \(error.localizedDescription)", isError: true)
-        }
     }
     
     @objc private func resetMeasurement() {
@@ -438,8 +298,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         removeDynamicLine()
         
         measurementLabel.isHidden = true
-        captureButton.isHidden = true
-        currentMeasurementImage = nil
         
         updateInstructions()
         
@@ -540,7 +398,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             self.measurementLabel.isHidden = false
         }
         
-        showFeedback("Height: \(cmText) (\(feetText)) - Tap 📷 to save", isError: false)
+        showFeedback("Height: \(cmText) (\(feetText))", isError: false)
     }
     
     private func updateInstructions() {
@@ -551,51 +409,9 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             case 1:
                 self.instructionLabel.text = "Now point at person's head and tap +"
             default:
-                self.instructionLabel.text = "Tap 📷 to save measurement"
+                self.instructionLabel.text = "Measurement complete - tap Clear to start over"
             }
         }
-    }
-    
-    private func updateRecordCountLabel() {
-        DispatchQueue.main.async {
-            self.recordCountLabel.text = "Records: \(self.measurementRecords.count)"
-        }
-    }
-    
-    // MARK: - File Management
-    private func saveImageToDocuments(image: UIImage) -> String? {
-        guard let data = image.jpegData(compressionQuality: 0.8) else { return nil }
-        
-        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let fileName = "measurement_\(UUID().uuidString).jpg"
-        let fileURL = documentsDirectory.appendingPathComponent(fileName)
-        
-        do {
-            try data.write(to: fileURL)
-            return fileName
-        } catch {
-            print("Failed to save image: \(error)")
-            return nil
-        }
-    }
-    
-    private func generateCSVContent() -> String {
-        var csv = "Timestamp,Height_CM,Height_Feet_Inches,Image_Filename,Notes\n"
-        
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        
-        for record in measurementRecords {
-            let timestamp = dateFormatter.string(from: record.timestamp)
-            let heightCM = String(format: "%.1f", record.heightCM)
-            let heightFeet = record.heightFeet
-            let imagePath = record.imagePath ?? ""
-            let notes = record.notes ?? ""
-            
-            csv += "\"\(timestamp)\",\(heightCM),\"\(heightFeet)\",\"\(imagePath)\",\"\(notes)\"\n"
-        }
-        
-        return csv
     }
     
     private func showFeedback(_ message: String, isError: Bool) {
@@ -675,13 +491,4 @@ extension ViewController {
             }
         }
     }
-}
-
-// MARK: - Extensions
-extension DateFormatter {
-    static let filenameDateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
-        return formatter
-    }()
 }
